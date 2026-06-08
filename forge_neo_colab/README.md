@@ -1,5 +1,7 @@
 # Forge-Neo Colab
 
+[![Open in Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hoshikawaryuukou/my-colab/blob/main/forge_neo_colab/Forge_Neo_COLAB.ipynb)
+
 Minimal flow for running Stable Diffusion WebUI Forge - Neo on Colab.
 
 ## Files
@@ -15,7 +17,7 @@ forge_neo_colab/
 ## 1. Load Helper
 
 ```python
-!curl -sLo /content/forge_neo_colab.py https://raw.githubusercontent.com/YOUR_REPO/YOUR_BRANCH/forge_neo_colab/forge_neo_colab.py
+!curl -sLo /content/forge_neo_colab.py https://raw.githubusercontent.com/hoshikawaryuukou/my-colab/main/forge_neo_colab/forge_neo_colab.py
 %run /content/forge_neo_colab.py paths
 ```
 
