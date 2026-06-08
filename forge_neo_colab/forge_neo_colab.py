@@ -451,7 +451,7 @@ def start_cloudflared(port: int) -> subprocess.Popen[str]:
 def start_gradio_tunnel(port: int) -> subprocess.Popen[str]:
     script = install_gradio_tunnel()
     proc = subprocess.Popen(
-        [str(VENV / "bin" / "python"), str(script), str(port)],
+        [sys.executable, str(script), str(port)],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -486,6 +486,12 @@ def start_ngrok(port: int, token: str | None) -> subprocess.Popen[str]:
     return proc
 
 
+def wait_for_tunnel(proc: subprocess.Popen[str], name: str) -> None:
+    time.sleep(2)
+    if proc.poll() is not None:
+        raise RuntimeError(f"{name} tunnel stopped before WebUI launch. Check the tunnel output above.")
+
+
 def warn_if_no_auth(args: list[str]) -> None:
     has_auth = any(arg == "--gradio-auth" or arg.startswith("--gradio-auth=") for arg in args)
     if has_auth:
@@ -514,13 +520,13 @@ def launch(
     tunnel_proc = None
     if tunnel == "gradio":
         tunnel_proc = start_gradio_tunnel(port)
-        time.sleep(2)
+        wait_for_tunnel(tunnel_proc, "Gradio")
     elif tunnel == "ngrok":
         tunnel_proc = start_ngrok(port, ngrok_token or os.environ.get("NGROK_TOKEN"))
-        time.sleep(2)
+        wait_for_tunnel(tunnel_proc, "ngrok")
     elif tunnel == "cloudflared":
         tunnel_proc = start_cloudflared(port)
-        time.sleep(2)
+        wait_for_tunnel(tunnel_proc, "Cloudflare")
     elif tunnel != "none":
         raise ValueError("Supported tunnels: gradio, ngrok, cloudflared, none.")
 
