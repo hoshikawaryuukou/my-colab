@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import shlex
 import stat
 import subprocess
@@ -113,32 +114,65 @@ def resolve_repo_ref(ref: str) -> str:
         return ref
 
     output = capture(["git", "ls-remote", "--tags", "--sort=-v:refname", REPO_URL])
+    fallback_tag = None
     for line in output.splitlines():
         tag_ref = line.split()[-1]
         if tag_ref.endswith("^{}"):
             continue
         tag = tag_ref.removeprefix("refs/tags/")
-        if tag:
+        if not tag:
+            continue
+        fallback_tag = fallback_tag or tag
+        if re.search(r"\d", tag):
             return tag
 
+    if fallback_tag:
+        return fallback_tag
+
     raise RuntimeError("Could not resolve latest Forge-Neo tag.")
+
+
+def remove_incomplete_checkout() -> None:
+    if not WEBUI.exists() or (WEBUI / ".git").exists():
+        return
+
+    if (WEBUI / "launch.py").exists():
+        raise RuntimeError(
+            f"{WEBUI} exists but is not a git checkout. "
+            "Set FORGE_NEO_HOME to another path or remove the directory manually."
+        )
+
+    print(f"Removing incomplete Forge-Neo checkout: {WEBUI}")
+    shutil.rmtree(WEBUI)
+
+
+def checkout_repo_ref(ref: str) -> None:
+    run(["git", "fetch", "--tags", "origin"], cwd=WEBUI)
+
+    checkout = run(["git", "checkout", ref], cwd=WEBUI, check=False)
+    if checkout.returncode == 0:
+        return
+
+    fetch = run(["git", "fetch", "--depth", "1", "origin", ref], cwd=WEBUI, check=False)
+    if fetch.returncode == 0:
+        run(["git", "checkout", "FETCH_HEAD"], cwd=WEBUI)
+        return
+
+    raise RuntimeError(f"Could not checkout Forge-Neo ref: {ref}")
 
 
 def clone_or_update(ref: str = REPO_REF) -> str:
     ref = resolve_repo_ref(ref)
     if (WEBUI / ".git").exists():
-        run(["git", "fetch", "--tags", "origin"], cwd=WEBUI)
-        run(["git", "checkout", ref], cwd=WEBUI)
+        checkout_repo_ref(ref)
         current_branch = capture(["git", "branch", "--show-current"], cwd=WEBUI)
         if current_branch:
             run(["git", "pull", "--ff-only", "origin", current_branch], cwd=WEBUI)
     else:
+        remove_incomplete_checkout()
         WEBUI.parent.mkdir(parents=True, exist_ok=True)
-        run(["git", "clone", "--depth", "1", "--branch", ref, REPO_URL, str(WEBUI)], check=False)
-        if not (WEBUI / ".git").exists():
-            run(["git", "clone", "--depth", "1", REPO_URL, str(WEBUI)])
-            run(["git", "fetch", "--tags", "origin"], cwd=WEBUI)
-            run(["git", "checkout", ref], cwd=WEBUI)
+        run(["git", "clone", "--depth", "1", REPO_URL, str(WEBUI)])
+        checkout_repo_ref(ref)
 
     print(f"Forge-Neo source ref: {ref}")
     return ref
