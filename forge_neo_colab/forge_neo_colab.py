@@ -43,6 +43,7 @@ MODEL_TMP = ROOT / "models-tmp"
 REPO_URL = "https://github.com/Haoming02/sd-webui-forge-classic"
 REPO_REF = os.environ.get("FORGE_NEO_REF", "neo")
 PYTHON_VERSION = "3.13.12"
+HELPER_VERSION = "2026-06-09.2"
 
 MODEL_DIRS = {
     "ckpt": WEBUI / "models" / "Stable-diffusion",
@@ -626,6 +627,8 @@ if register_line_magic:
 
 
 def main() -> None:
+    print(f"Forge-Neo Colab helper version: {HELPER_VERSION}")
+
     parser = argparse.ArgumentParser(description="Forge-Neo Colab helper")
     sub = parser.add_subparsers(dest="command", required=True)
 
