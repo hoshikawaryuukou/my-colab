@@ -51,7 +51,7 @@ Then it creates:
 /content/sd-webui-forge-neo/venv
 ```
 
-using Python 3.13.
+using Python 3.13, then runs Forge's environment preparation in that venv.
 
 ## 3. Optional Tokens
 

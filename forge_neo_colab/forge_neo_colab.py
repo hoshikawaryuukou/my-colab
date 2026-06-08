@@ -43,7 +43,7 @@ MODEL_TMP = ROOT / "models-tmp"
 REPO_URL = "https://github.com/Haoming02/sd-webui-forge-classic"
 REPO_REF = os.environ.get("FORGE_NEO_REF", "neo")
 PYTHON_VERSION = "3.13.12"
-HELPER_VERSION = "2026-06-09.3"
+HELPER_VERSION = "2026-06-09.5"
 
 MODEL_DIRS = {
     "ckpt": WEBUI / "models" / "Stable-diffusion",
@@ -97,7 +97,8 @@ def run_live(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None
 
 def uv_env(*, venv: bool = False) -> dict[str, str]:
     env = {**os.environ}
-    env.pop("UV_SYSTEM", None)
+    for key in ["UV_SYSTEM", "UV_SYSTEM_PYTHON", "UV_PROJECT_ENVIRONMENT", "UV_PYTHON"]:
+        env.pop(key, None)
     env["PYTHONUNBUFFERED"] = "1"
     if venv:
         env["VIRTUAL_ENV"] = str(VENV)
@@ -234,10 +235,35 @@ def venv_python() -> Path:
     return VENV / "bin" / "python"
 
 
+def print_python_context(env: dict[str, str]) -> None:
+    print("Forge-Neo Python context:")
+    print(f"  python = {venv_python()}")
+    print(f"  VIRTUAL_ENV = {env.get('VIRTUAL_ENV', '')}")
+    run_live(
+        [
+            str(venv_python()),
+            "-c",
+            "import os, sys; print('  sys.executable =', sys.executable); print('  sys.prefix =', sys.prefix); print('  base_prefix =', sys.base_prefix)",
+        ],
+        cwd=WEBUI,
+        env=env,
+    )
+
+
 def prepare_webui_environment() -> None:
     env = uv_env(venv=True)
     env["WEBUI_LAUNCH_LIVE_OUTPUT"] = "1"
-    run_live([str(venv_python()), "launch.py", "--uv", "--exit"], cwd=WEBUI, env=env)
+    print_python_context(env)
+    run_live([str(venv_python()), "launch.py", "--skip-torch-cuda-test", "--exit"], cwd=WEBUI, env=env)
+    run_live(
+        [
+            str(venv_python()),
+            "-c",
+            "import torch; print('Torch:', torch.__version__); print('CUDA available:', torch.cuda.is_available()); print('CUDA version:', torch.version.cuda); print('Device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')",
+        ],
+        cwd=WEBUI,
+        env=env,
+    )
 
 
 def install(ref: str = REPO_REF) -> None:
@@ -592,7 +618,6 @@ def launch(
         raise ValueError("Supported tunnels: gradio, ngrok, cloudflared, none.")
 
     default_args = [
-        "--uv",
         "--listen",
         "--port",
         str(port),
@@ -600,6 +625,7 @@ def launch(
         "--cuda-stream",
         "--enable-insecure-extension-access",
         "--disable-console-progressbars",
+        "--skip-torch-cuda-test",
         "--theme",
         "dark",
     ]
