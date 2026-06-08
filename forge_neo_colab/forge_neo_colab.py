@@ -193,15 +193,25 @@ def setup_python() -> None:
     run([sys.executable, "-m", "uv", "venv", str(VENV), "--python", python_bin, "--seed"])
 
 
+def venv_python() -> Path:
+    return VENV / "bin" / "python"
+
+
+def prepare_webui_environment() -> None:
+    os.environ.setdefault("WEBUI_LAUNCH_LIVE_OUTPUT", "1")
+    run([str(venv_python()), "launch.py", "--uv", "--exit"], cwd=WEBUI)
+
+
 def install(ref: str = REPO_REF) -> None:
     install_system_tools()
     resolved_ref = clone_or_update(ref)
     setup_python()
     ensure_dirs()
+    prepare_webui_environment()
     export_ipython_vars()
     checked_out = capture(["git", "rev-parse", "--short", "HEAD"], cwd=WEBUI)
     print(f"\nInstall step complete. Forge-Neo ref: {resolved_ref} ({checked_out})")
-    print("launch.py will install Forge-Neo requirements on first launch.")
+    print("Forge-Neo environment is installed. You can launch the WebUI now.")
 
 
 def civitai_headers(token: str | None = None) -> dict[str, str]:
@@ -518,6 +528,7 @@ def launch(
     tunnel: str = "gradio",
     ngrok_token: str | None = None,
 ) -> None:
+    os.environ.setdefault("WEBUI_LAUNCH_LIVE_OUTPUT", "1")
     ensure_dirs()
     export_ipython_vars()
 
@@ -552,7 +563,7 @@ def launch(
         "--theme",
         "dark",
     ]
-    cmd = [str(VENV / "bin" / "python"), "launch.py", *default_args, *args]
+    cmd = [str(venv_python()), "launch.py", *default_args, *args]
 
     try:
         run(cmd, cwd=WEBUI)
