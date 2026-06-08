@@ -1,0 +1,16 @@
+{
+  "checkpoints": [
+    {
+      "url": "https://huggingface.co/user/repo/resolve/main/model.safetensors",
+      "name": "model.safetensors"
+    }
+  ],
+  "loras": [
+    "https://civitai.com/models/122359/detail-tweaker-xl"
+  ],
+  "vae": [
+    "https://drive.google.com/file/d/FILE_ID/view?usp=sharing"
+  ],
+  "embeddings": [],
+  "upscalers": []
+}
