@@ -41,7 +41,7 @@ BIN = ROOT / "bin"
 MODEL_TMP = ROOT / "models-tmp"
 
 REPO_URL = "https://github.com/Haoming02/sd-webui-forge-classic"
-REPO_REF = os.environ.get("FORGE_NEO_REF", "latest-tag")
+REPO_REF = os.environ.get("FORGE_NEO_REF", "neo")
 PYTHON_VERSION = "3.13.12"
 
 MODEL_DIRS = {
@@ -66,6 +66,27 @@ def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> subproce
 
 def capture(cmd: list[str], cwd: Path | None = None) -> str:
     return subprocess.check_output(cmd, cwd=str(cwd) if cwd else None, text=True).strip()
+
+
+def run_live(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
+    print("+ " + " ".join(shlex.quote(str(part)) for part in cmd))
+    proc = subprocess.Popen(
+        cmd,
+        cwd=str(cwd) if cwd else None,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        print(line, end="", flush=True)
+
+    code = proc.wait()
+    if code:
+        raise subprocess.CalledProcessError(code, cmd)
 
 
 def ensure_dirs() -> None:
@@ -198,8 +219,12 @@ def venv_python() -> Path:
 
 
 def prepare_webui_environment() -> None:
-    os.environ.setdefault("WEBUI_LAUNCH_LIVE_OUTPUT", "1")
-    run([str(venv_python()), "launch.py", "--uv", "--exit"], cwd=WEBUI)
+    env = {
+        **os.environ,
+        "PYTHONUNBUFFERED": "1",
+        "WEBUI_LAUNCH_LIVE_OUTPUT": "1",
+    }
+    run_live([str(venv_python()), "launch.py", "--uv", "--exit"], cwd=WEBUI, env=env)
 
 
 def install(ref: str = REPO_REF) -> None:
@@ -528,6 +553,7 @@ def launch(
     tunnel: str = "gradio",
     ngrok_token: str | None = None,
 ) -> None:
+    os.environ.setdefault("PYTHONUNBUFFERED", "1")
     os.environ.setdefault("WEBUI_LAUNCH_LIVE_OUTPUT", "1")
     ensure_dirs()
     export_ipython_vars()

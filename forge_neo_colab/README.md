@@ -36,8 +36,9 @@ This installs system tools, installs `uv`, clones:
 https://github.com/Haoming02/sd-webui-forge-classic
 ```
 
-By default it resolves the latest Git tag at install time. You can also pin a
-known-good tag, branch, or commit SHA:
+By default it follows the Forge-Neo `neo` branch, matching the upstream
+recommended install flow. You can also pin a known-good tag, branch, or commit
+SHA:
 
 ```python
 %run /content/forge_neo_colab.py install --ref 2.24
