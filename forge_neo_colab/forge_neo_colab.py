@@ -199,19 +199,18 @@ def clone_or_update(ref: str = REPO_REF) -> str:
     return ref
 
 
-def remove_incomplete_venv() -> None:
-    if not VENV.exists() or (VENV / "pyvenv.cfg").exists():
+def remove_venv() -> None:
+    if not VENV.exists():
         return
 
-    print(f"Removing incomplete Python venv: {VENV}")
+    print(f"Removing existing Python venv: {VENV}")
     shutil.rmtree(VENV)
 
 
 def setup_python() -> None:
     run([sys.executable, "-m", "uv", "python", "install", PYTHON_VERSION])
-    remove_incomplete_venv()
-    python_bin = capture([sys.executable, "-m", "uv", "python", "find", PYTHON_VERSION])
-    run([sys.executable, "-m", "uv", "venv", str(VENV), "--python", python_bin, "--seed"])
+    remove_venv()
+    run_live([sys.executable, "-m", "uv", "venv", VENV.name, "--python", "3.13", "--seed"], cwd=WEBUI)
 
 
 def venv_python() -> Path:
