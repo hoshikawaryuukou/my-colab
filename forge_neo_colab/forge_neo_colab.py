@@ -43,7 +43,7 @@ MODEL_TMP = ROOT / "models-tmp"
 REPO_URL = "https://github.com/Haoming02/sd-webui-forge-classic"
 REPO_REF = os.environ.get("FORGE_NEO_REF", "neo")
 PYTHON_VERSION = "3.13.12"
-HELPER_VERSION = "2026-06-09.2"
+HELPER_VERSION = "2026-06-09.3"
 
 MODEL_DIRS = {
     "ckpt": WEBUI / "models" / "Stable-diffusion",
@@ -60,13 +60,18 @@ MODEL_DIRS = {
 }
 
 
-def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
+def run(
+    cmd: list[str],
+    cwd: Path | None = None,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess:
     print("+ " + " ".join(shlex.quote(str(part)) for part in cmd))
-    return subprocess.run(cmd, cwd=str(cwd) if cwd else None, check=check)
+    return subprocess.run(cmd, cwd=str(cwd) if cwd else None, check=check, env=env)
 
 
-def capture(cmd: list[str], cwd: Path | None = None) -> str:
-    return subprocess.check_output(cmd, cwd=str(cwd) if cwd else None, text=True).strip()
+def capture(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
+    return subprocess.check_output(cmd, cwd=str(cwd) if cwd else None, text=True, env=env).strip()
 
 
 def run_live(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
@@ -88,6 +93,16 @@ def run_live(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None
     code = proc.wait()
     if code:
         raise subprocess.CalledProcessError(code, cmd)
+
+
+def uv_env(*, venv: bool = False) -> dict[str, str]:
+    env = {**os.environ}
+    env.pop("UV_SYSTEM", None)
+    env["PYTHONUNBUFFERED"] = "1"
+    if venv:
+        env["VIRTUAL_ENV"] = str(VENV)
+        env["PATH"] = f"{VENV / 'bin'}{os.pathsep}{env.get('PATH', '')}"
+    return env
 
 
 def ensure_dirs() -> None:
@@ -209,9 +224,10 @@ def remove_venv() -> None:
 
 
 def setup_python() -> None:
-    run([sys.executable, "-m", "uv", "python", "install", PYTHON_VERSION])
+    env = uv_env()
+    run([sys.executable, "-m", "uv", "python", "install", PYTHON_VERSION], env=env)
     remove_venv()
-    run_live([sys.executable, "-m", "uv", "venv", VENV.name, "--python", "3.13", "--seed"], cwd=WEBUI)
+    run_live([sys.executable, "-m", "uv", "venv", VENV.name, "--python", "3.13", "--seed"], cwd=WEBUI, env=env)
 
 
 def venv_python() -> Path:
@@ -219,11 +235,8 @@ def venv_python() -> Path:
 
 
 def prepare_webui_environment() -> None:
-    env = {
-        **os.environ,
-        "PYTHONUNBUFFERED": "1",
-        "WEBUI_LAUNCH_LIVE_OUTPUT": "1",
-    }
+    env = uv_env(venv=True)
+    env["WEBUI_LAUNCH_LIVE_OUTPUT"] = "1"
     run_live([str(venv_python()), "launch.py", "--uv", "--exit"], cwd=WEBUI, env=env)
 
 
@@ -555,6 +568,7 @@ def launch(
 ) -> None:
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
     os.environ.setdefault("WEBUI_LAUNCH_LIVE_OUTPUT", "1")
+    os.environ.pop("UV_SYSTEM", None)
     ensure_dirs()
     export_ipython_vars()
 
@@ -592,7 +606,7 @@ def launch(
     cmd = [str(venv_python()), "launch.py", *default_args, *args]
 
     try:
-        run(cmd, cwd=WEBUI)
+        run(cmd, cwd=WEBUI, env=uv_env(venv=True))
     finally:
         if tunnel_proc and tunnel_proc.poll() is None:
             tunnel_proc.terminate()
